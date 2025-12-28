@@ -7,7 +7,7 @@ app.secret_key = "change_this_secret_key"
 
 # 🔐 PASSWORDS
 LOGIN_PASSWORD = "college123"
-ADMIN_PASSWORD = "admin123"
+ADMIN_PASSWORD = "kritik"
 
 # 📦 DATABASE CONNECTION (FIXED)
 def db():
