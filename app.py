@@ -6,8 +6,8 @@ app = Flask(__name__)
 app.secret_key = "change_this_secret_key"
 
 # 🔐 PASSWORDS
-LOGIN_PASSWORD = "college123"   # common password for all users
-ADMIN_PASSWORD = "admin123"     # admin panel password
+LOGIN_PASSWORD = "collage"
+ADMIN_PASSWORD = "kritik"    # admin panel password
 
 # 📦 DATABASE CONNECTION
 def db():
