@@ -6,14 +6,20 @@ app = Flask(__name__)
 app.secret_key = "change_this_secret_key"
 
 # 🔐 PASSWORDS
-LOGIN_PASSWORD = "collage"
-ADMIN_PASSWORD = "kritik"    # admin panel password
+LOGIN_PASSWORD = "college123"
+ADMIN_PASSWORD = "admin123"
 
-# 📦 DATABASE CONNECTION
+# 📦 DATABASE CONNECTION (FIXED)
 def db():
-    return sqlite3.connect("database.db", check_same_thread=False)
+    con = sqlite3.connect(
+        "database.db",
+        timeout=10,
+        check_same_thread=False
+    )
+    con.execute("PRAGMA journal_mode=WAL;")
+    return con
 
-# 🗄️ AUTO CREATE DATABASE TABLES (VERY IMPORTANT FOR MOBILE)
+# 🗄️ AUTO CREATE DATABASE TABLES
 def init_db():
     con = db()
     cur = con.cursor()
@@ -44,6 +50,7 @@ def init_db():
     """)
 
     con.commit()
+    con.close()
 
 init_db()
 
@@ -60,6 +67,7 @@ def login():
                 (username,)
             )
             con.commit()
+            con.close()
 
             session["user"] = username
             return redirect("/chat")
@@ -75,7 +83,6 @@ def chat():
     con = db()
     cur = con.cursor()
 
-    # ⛔ CHECK BAN
     ban = cur.execute(
         "SELECT banned_until FROM users WHERE username=?",
         (session["user"],)
@@ -84,11 +91,14 @@ def chat():
     if ban and ban[0]:
         until = datetime.fromisoformat(ban[0])
         if until > datetime.now():
+            con.close()
             return f"You are banned till {until}"
 
     messages = cur.execute(
         "SELECT user,message,time FROM chat ORDER BY id DESC LIMIT 50"
     ).fetchall()
+
+    con.close()
 
     return render_template(
         "chat.html",
@@ -99,7 +109,7 @@ def chat():
 @app.route("/send", methods=["POST"])
 def send():
     if "user" not in session:
-        return "Unauthorized"
+        return redirect("/")
 
     msg = request.form["msg"]
 
@@ -109,6 +119,7 @@ def send():
         (session["user"], msg, datetime.now().strftime("%H:%M"))
     )
     con.commit()
+    con.close()
 
     return redirect("/chat")
 
@@ -128,7 +139,6 @@ def report(username):
         (username,)
     ).fetchone()[0]
 
-    # 🚫 AUTO BAN AFTER 5 REPORTS
     if reports >= 5:
         ban_until = datetime.now() + timedelta(hours=2)
         cur.execute(
@@ -137,6 +147,8 @@ def report(username):
         )
 
     con.commit()
+    con.close()
+
     return redirect("/chat")
 
 # ---------------- ADMIN ----------------
@@ -153,17 +165,20 @@ def admin():
     users = con.execute(
         "SELECT username,reports,banned_until FROM users"
     ).fetchall()
+    con.close()
 
     return render_template("admin.html", users=users)
 
 @app.route("/delete/<username>")
 def delete_user(username):
     if not session.get("admin"):
-        return "Forbidden"
+        return redirect("/")
 
     con = db()
     con.execute("DELETE FROM users WHERE username=?", (username,))
     con.commit()
+    con.close()
+
     return redirect("/admin")
 
 # ---------------- POLL ----------------
@@ -180,16 +195,24 @@ def poll():
         )
         con.commit()
 
-    poll = cur.execute("SELECT * FROM poll").fetchone()
-    return render_template("poll.html", poll=poll, admin=session.get("admin"))
+    poll_data = cur.execute("SELECT * FROM poll").fetchone()
+    con.close()
+
+    return render_template(
+        "poll.html",
+        poll=poll_data,
+        admin=session.get("admin")
+    )
 
 @app.route("/vote/<opt>")
 def vote(opt):
     con = db()
     con.execute(f"UPDATE poll SET {opt}={opt}+1")
     con.commit()
+    con.close()
+
     return redirect("/poll")
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
