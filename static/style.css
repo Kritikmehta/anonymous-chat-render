@@ -1,0 +1,115 @@
+* {
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+body {
+    margin: 0;
+    background: #f1f5f9;
+}
+
+/* ---------- HEADER ---------- */
+.header {
+    text-align: center;
+    padding: 15px 10px;
+    background: white;
+}
+
+.header img {
+    width: 90px;
+    margin-bottom: 5px;
+}
+
+.header h1 {
+    font-size: 18px;
+    margin: 5px 0;
+}
+
+.header h2 {
+    font-size: 14px;
+    margin: 0;
+    color: #374151;
+}
+
+.header hr {
+    margin-top: 12px;
+    border: none;
+    border-top: 2px solid #2563eb;
+}
+
+/* ---------- CONTAINER ---------- */
+.container {
+    max-width: 480px;
+    margin: auto;
+    padding: 15px;
+}
+
+/* ---------- FORMS ---------- */
+input {
+    width: 100%;
+    padding: 12px;
+    margin: 6px 0;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 15px;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+}
+
+/* ---------- BOX ---------- */
+.box {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+/* ---------- CHAT ---------- */
+.chat-box {
+    background: #e5e7eb;
+    height: 60vh;
+    overflow-y: auto;
+    padding: 10px;
+    border-radius: 6px;
+}
+
+.msg {
+    background: white;
+    padding: 8px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+}
+
+.announcement {
+    background: #fde68a;
+    font-weight: bold;
+}
+
+/* ---------- LINKS ---------- */
+a {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+/* ---------- TABLE ---------- */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+}
