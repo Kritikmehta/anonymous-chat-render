@@ -8,13 +8,15 @@
 <body>
 
 <div class="header">
-    <img src="/static/rdgmc_logo.png">
-    <h1>R.D. Gardi Medical College</h1>
     <h2>RDGMC Chat Group</h2>
     <hr>
 </div>
 
 <div class="container">
+
+{% if muted %}
+<p style="color:red;text-align:center;">You are muted temporarily</p>
+{% endif %}
 
 {% if admin %}
 <form method="post" action="/send">
@@ -26,14 +28,12 @@
 
 <div class="chat-box" id="chat"></div>
 
+{% if not muted %}
 <form method="post" action="/send">
     <input name="msg" placeholder="Type message" required>
     <button>Send</button>
 </form>
-
-<br>
-<a href="/poll">Poll</a> |
-{% if admin %}<a href="/admin">Admin</a>{% endif %}
+{% endif %}
 
 </div>
 
@@ -42,8 +42,13 @@ function load(){
  fetch("/messages").then(r=>r.json()).then(d=>{
   let h="";
   d.forEach(m=>{
-   h+=`<div class="msg ${m[2]=='announcement'?'announcement':''}">
-   <b>${m[0]}</b>: ${m[1]}
+   h+=`<div class="msg ${m[3]=='announcement'?'announcement':''}">
+   <b>${m[1]}</b>: ${m[2]}
+   <a href="/report/${m[0]}">🚩</a>
+   {% if admin %}
+     <a href="/delete_msg/${m[0]}">❌</a>
+     <a href="/mute/${m[1]}">🔇</a>
+   {% endif %}
    </div>`;
   });
   document.getElementById("chat").innerHTML=h;
