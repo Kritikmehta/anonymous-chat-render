@@ -1,46 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Admin Panel</title>
+    <title>Admin</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-{% if login %}
-<h2>Admin Login</h2>
+<div class="header">
+    <img src="/static/rdgmc_logo.png">
+    <h1>R.D. Gardi Medical College</h1>
+    <h2>Admin Panel</h2>
+    <hr>
+</div>
 
-<form method="post">
-    <input type="password" name="password" placeholder="Admin password" required>
-    <br><br>
-    <button type="submit">Login</button>
-</form>
+<div class="container">
 
-{% else %}
-<h2>Admin Panel</h2>
-
-<table border="1" cellpadding="5">
-    <tr>
-        <th>Username</th>
-        <th>Reports</th>
-        <th>Banned Till</th>
-        <th>Action</th>
-    </tr>
-
+<table>
+<tr><th>User</th><th>Reports</th><th>Banned</th></tr>
 {% for u in users %}
 <tr>
-    <td>{{ u[0] }}</td>
-    <td>{{ u[1] }}</td>
-    <td>{{ u[2] if u[2] else "—" }}</td>
-    <td>
-        <a href="/delete/{{ u[0] }}">❌ Delete</a>
-    </td>
+<td>{{u[0]}}</td>
+<td>{{u[1]}}</td>
+<td>{{u[2] if u[2] else "-"}}</td>
 </tr>
 {% endfor %}
 </table>
 
 <br>
-<a href="/chat">⬅ Back to chat</a>
-{% endif %}
+<a href="/chat">Back</a>
 
+</div>
 </body>
 </html>
