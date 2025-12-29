@@ -283,41 +283,38 @@ def admin():
 # ---------------- POLL ----------------
 @app.route("/poll", methods=["GET", "POST"])
 def poll():
+    if "user" not in session:
+        return redirect("/")
+
     con = db()
     cur = con.cursor()
 
     if request.method == "POST" and session.get("admin"):
-        # Safely read form fields
         q  = request.form.get("question")
         o1 = request.form.get("o1")
         o2 = request.form.get("o2")
         o3 = request.form.get("o3")
         o4 = request.form.get("o4")
 
-        # Only create poll if all fields are present
+        # Create poll ONLY if all fields exist
         if q and o1 and o2 and o3 and o4:
-            # Remove old poll & votes
+            # Clear old poll safely
             cur.execute("DELETE FROM poll")
             cur.execute("DELETE FROM poll_votes")
 
-            # Insert new poll
+            # ✅ 9 columns → 9 values (FIXED)
             cur.execute("""
-            INSERT INTO poll
-            (question, opt1, opt2, opt3, opt4, v1, v2, v3, v4)
-            VALUES (?,?,?,?,?,?,?,?)
+                INSERT INTO poll
+                (question, opt1, opt2, opt3, opt4, v1, v2, v3, v4)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (q, o1, o2, o3, o4, 0, 0, 0, 0))
 
             con.commit()
 
-    # Fetch active poll (if any)
     poll = cur.execute("SELECT * FROM poll").fetchone()
     con.close()
 
-    return render_template(
-        "poll.html",
-        poll=poll,
-        admin=session.get("admin")
-    )
+    return render_template("poll.html", poll=poll, admin=session.get("admin"))
 
 
 # ---------------- VOTE ----------------
@@ -332,17 +329,13 @@ def vote(n):
     con = db()
     cur = con.cursor()
 
-    # Check if user already voted
     already = cur.execute(
         "SELECT username FROM poll_votes WHERE username=?",
         (session["user"],)
     ).fetchone()
 
     if not already:
-        # Count vote
         cur.execute(f"UPDATE poll SET v{n} = v{n} + 1")
-
-        # Mark user as voted
         cur.execute(
             "INSERT INTO poll_votes(username) VALUES(?)",
             (session["user"],)
