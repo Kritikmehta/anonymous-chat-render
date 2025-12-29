@@ -22,6 +22,7 @@ def init_db():
     con = db()
     cur = con.cursor()
 
+    # USERS
     cur.execute("""
     CREATE TABLE IF NOT EXISTS users (
         username TEXT PRIMARY KEY,
@@ -32,6 +33,7 @@ def init_db():
     )
     """)
 
+    # CHAT
     cur.execute("""
     CREATE TABLE IF NOT EXISTS chat (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,11 +44,34 @@ def init_db():
     )
     """)
 
+    # REPORT LOGS (one report per user per message)
     cur.execute("""
     CREATE TABLE IF NOT EXISTS report_logs (
         message_id INTEGER,
         reporter TEXT,
         PRIMARY KEY (message_id, reporter)
+    )
+    """)
+
+    # POLL
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS poll (
+        question TEXT,
+        opt1 TEXT,
+        opt2 TEXT,
+        opt3 TEXT,
+        opt4 TEXT,
+        v1 INTEGER,
+        v2 INTEGER,
+        v3 INTEGER,
+        v4 INTEGER
+    )
+    """)
+
+    # POLL VOTES (one vote per username)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS poll_votes (
+        username TEXT PRIMARY KEY
     )
     """)
 
@@ -79,7 +104,10 @@ def login():
             if row[0] != d and row[1] != s:
                 con.close()
                 return render_template("login.html", error="Username locked")
-            cur.execute("UPDATE users SET device_id=? WHERE username=?", (d, u))
+            cur.execute(
+                "UPDATE users SET device_id=? WHERE username=?",
+                (d, u)
+            )
         else:
             cur.execute(
                 "INSERT INTO users(username,device_id,security_answer) VALUES(?,?,?)",
@@ -92,6 +120,8 @@ def login():
         session["user"] = u
         if request.form.get("admin_password") == ADMIN_PASSWORD:
             session["admin"] = True
+        else:
+            session.pop("admin", None)
 
         return redirect("/chat")
 
@@ -116,21 +146,16 @@ def chat():
         if datetime.fromisoformat(mute[0]) > datetime.now():
             muted = True
 
-    msgs = cur.execute(
-        "SELECT id,user,message,msg_type,time FROM chat ORDER BY id ASC"
-    ).fetchall()
-
     con.close()
 
     return render_template(
         "chat.html",
-        messages=msgs,
         user=session["user"],
         admin=session.get("admin"),
         muted=muted
     )
 
-# ---------------- SEND MESSAGE ----------------
+# ---------------- SEND MESSAGE (AJAX SAFE) ----------------
 @app.route("/send", methods=["POST"])
 def send():
     if "user" not in session:
@@ -148,15 +173,20 @@ def send():
         con.close()
         return "Muted"
 
-    msg = request.form["msg"]
-    mtype = "announcement" if session.get("admin") and request.form.get("announcement") else "normal"
+    msg = request.form.get("msg", "").strip()
+    if not msg:
+        con.close()
+        return "Empty"
+
+    msg_type = "announcement" if session.get("admin") and request.form.get("announcement") else "normal"
 
     cur.execute(
         "INSERT INTO chat(user,message,msg_type,time) VALUES(?,?,?,?)",
-        (session["user"], msg, mtype, datetime.now().strftime("%H:%M"))
+        (session["user"], msg, msg_type, datetime.now().strftime("%H:%M"))
     )
     con.commit()
     con.close()
+
     return "OK"
 
 # ---------------- AUTO REFRESH ----------------
@@ -169,7 +199,7 @@ def messages():
     con.close()
     return jsonify(data)
 
-# ---------------- REPORT (ONE TIME PER USER PER MESSAGE) ----------------
+# ---------------- REPORT (ONCE PER USER PER MESSAGE) ----------------
 @app.route("/report/<int:mid>")
 def report(mid):
     if "user" not in session:
@@ -235,6 +265,71 @@ def mute(username):
     con.commit()
     con.close()
     return redirect("/chat")
+
+# ---------------- ADMIN PANEL ----------------
+@app.route("/admin")
+def admin():
+    if not session.get("admin"):
+        return redirect("/chat")
+
+    con = db()
+    users = con.execute(
+        "SELECT username,reports,muted_until FROM users"
+    ).fetchall()
+    con.close()
+
+    return render_template("admin.html", users=users)
+
+# ---------------- POLL ----------------
+@app.route("/poll", methods=["GET", "POST"])
+def poll():
+    con = db()
+    cur = con.cursor()
+
+    if request.method == "POST" and session.get("admin"):
+        cur.execute("DELETE FROM poll")
+        cur.execute("DELETE FROM poll_votes")
+        cur.execute("""
+        INSERT INTO poll VALUES (?,?,?,?,?,?,?,?)
+        """, (
+            request.form["question"],
+            request.form["o1"],
+            request.form["o2"],
+            request.form["o3"],
+            request.form["o4"],
+            0, 0, 0, 0
+        ))
+        con.commit()
+
+    poll = cur.execute("SELECT * FROM poll").fetchone()
+    con.close()
+
+    return render_template("poll.html", poll=poll, admin=session.get("admin"))
+
+# ---------------- VOTE ----------------
+@app.route("/vote/<int:n>")
+def vote(n):
+    if "user" not in session:
+        return redirect("/")
+
+    con = db()
+    cur = con.cursor()
+
+    already = cur.execute(
+        "SELECT username FROM poll_votes WHERE username=?",
+        (session["user"],)
+    ).fetchone()
+
+    if not already:
+        cur.execute(f"UPDATE poll SET v{n}=v{n}+1")
+        cur.execute(
+            "INSERT INTO poll_votes(username) VALUES(?)",
+            (session["user"],)
+        )
+        con.commit()
+
+    con.close()
+    return redirect("/poll")
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
