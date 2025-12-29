@@ -1,15 +1,14 @@
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect, session, jsonify
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = "change_this_secret_key"
+app.secret_key = "CHANGE_THIS_SECRET"
 
-# 🔐 PASSWORDS
 LOGIN_PASSWORD = "college123"
-ADMIN_PASSWORD = "kritik"
+ADMIN_PASSWORD = "admin123"
 
-# 📦 DATABASE CONNECTION (FIXED)
+# ---------------- DATABASE ----------------
 def db():
     con = sqlite3.connect(
         "database.db",
@@ -19,33 +18,51 @@ def db():
     con.execute("PRAGMA journal_mode=WAL;")
     return con
 
-# 🗄️ AUTO CREATE DATABASE TABLES
 def init_db():
     con = db()
     cur = con.cursor()
 
+    # USERS (username permanently reserved)
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS users(
+    CREATE TABLE IF NOT EXISTS users (
         username TEXT PRIMARY KEY,
+        device_id TEXT,
+        security_answer TEXT,
         reports INTEGER DEFAULT 0,
         banned_until TEXT
     )
     """)
 
+    # CHAT
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS chat(
+    CREATE TABLE IF NOT EXISTS chat (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user TEXT,
         message TEXT,
+        msg_type TEXT,
         time TEXT
     )
     """)
 
+    # POLL (4 options)
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS poll(
+    CREATE TABLE IF NOT EXISTS poll (
         question TEXT,
-        yes INTEGER,
-        no INTEGER
+        opt1 TEXT,
+        opt2 TEXT,
+        opt3 TEXT,
+        opt4 TEXT,
+        v1 INTEGER,
+        v2 INTEGER,
+        v3 INTEGER,
+        v4 INTEGER
+    )
+    """)
+
+    # POLL VOTES (one vote per username)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS poll_votes (
+        username TEXT PRIMARY KEY
     )
     """)
 
@@ -58,23 +75,66 @@ init_db()
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        if request.form["password"] == LOGIN_PASSWORD:
-            username = request.form["username"]
+        username = request.form.get("username")
+        password = request.form.get("password")
+        device_id = request.form.get("device_id")
+        sec_ans = request.form.get("security_answer")
+        is_admin = request.form.get("is_admin")
 
-            con = db()
-            con.execute(
-                "INSERT OR IGNORE INTO users(username) VALUES(?)",
-                (username,)
+        if password != LOGIN_PASSWORD:
+            return render_template("login.html", error="Wrong password")
+
+        con = db()
+        cur = con.cursor()
+
+        user = cur.execute(
+            "SELECT device_id, security_answer FROM users WHERE username=?",
+            (username,)
+        ).fetchone()
+
+        if user:
+            # Username already exists (PERMANENTLY RESERVED)
+            if user[0] == device_id:
+                session["user"] = username
+            elif sec_ans and sec_ans == user[1]:
+                # Correct security answer → transfer ownership
+                cur.execute(
+                    "UPDATE users SET device_id=? WHERE username=?",
+                    (device_id, username)
+                )
+                con.commit()
+                session["user"] = username
+            else:
+                con.close()
+                return render_template(
+                    "login.html",
+                    error="Username already taken or wrong security answer",
+                    question="What name did you secretly use for someone you liked?"
+                )
+        else:
+            # New username (PERMANENT)
+            cur.execute(
+                "INSERT INTO users(username, device_id, security_answer) VALUES(?,?,?)",
+                (username, device_id, sec_ans)
             )
             con.commit()
-            con.close()
-
             session["user"] = username
-            return redirect("/chat")
 
-    return render_template("login.html")
+        # Admin flag (same user system)
+        if is_admin and request.form.get("admin_password") == ADMIN_PASSWORD:
+            session["admin"] = True
+        else:
+            session.pop("admin", None)
 
-# ---------------- CHAT ----------------
+        con.close()
+        return redirect("/chat")
+
+    return render_template(
+        "login.html",
+        question="What name did you secretly use for someone you liked?"
+    )
+
+# ---------------- CHAT PAGE ----------------
 @app.route("/chat")
 def chat():
     if "user" not in session:
@@ -83,83 +143,61 @@ def chat():
     con = db()
     cur = con.cursor()
 
-    ban = cur.execute(
-        "SELECT banned_until FROM users WHERE username=?",
-        (session["user"],)
-    ).fetchone()
-
-    if ban and ban[0]:
-        until = datetime.fromisoformat(ban[0])
-        if until > datetime.now():
-            con.close()
-            return f"You are banned till {until}"
+    # Get announcements first (pinned)
+    announcements = cur.execute(
+        "SELECT user,message,msg_type,time FROM chat WHERE msg_type='announcement' ORDER BY id DESC"
+    ).fetchall()
 
     messages = cur.execute(
-        "SELECT user,message,time FROM chat ORDER BY id DESC LIMIT 50"
+        "SELECT user,message,msg_type,time FROM chat WHERE msg_type='normal' ORDER BY id ASC"
     ).fetchall()
 
     con.close()
 
     return render_template(
         "chat.html",
-        messages=messages[::-1],
-        user=session["user"]
+        user=session["user"],
+        admin=session.get("admin"),
+        announcements=announcements,
+        messages=messages
     )
 
+# ---------------- SEND MESSAGE ----------------
 @app.route("/send", methods=["POST"])
 def send():
     if "user" not in session:
-        return redirect("/")
+        return "Unauthorized"
 
-    msg = request.form["msg"]
+    msg = request.form.get("msg")
+    is_announcement = request.form.get("announcement") == "1"
+
+    msg_type = "announcement" if session.get("admin") and is_announcement else "normal"
 
     con = db()
     con.execute(
-        "INSERT INTO chat(user,message,time) VALUES(?,?,?)",
-        (session["user"], msg, datetime.now().strftime("%H:%M"))
+        "INSERT INTO chat(user,message,msg_type,time) VALUES(?,?,?,?)",
+        (session["user"], msg, msg_type, datetime.now().strftime("%H:%M"))
     )
     con.commit()
     con.close()
 
-    return redirect("/chat")
+    return "OK"
 
-# ---------------- REPORT ----------------
-@app.route("/report/<username>")
-def report(username):
+# ---------------- AUTO REFRESH (JSON) ----------------
+@app.route("/messages")
+def messages():
     con = db()
-    cur = con.cursor()
-
-    cur.execute(
-        "UPDATE users SET reports = reports + 1 WHERE username=?",
-        (username,)
-    )
-
-    reports = cur.execute(
-        "SELECT reports FROM users WHERE username=?",
-        (username,)
-    ).fetchone()[0]
-
-    if reports >= 5:
-        ban_until = datetime.now() + timedelta(hours=2)
-        cur.execute(
-            "UPDATE users SET banned_until=? WHERE username=?",
-            (ban_until.isoformat(), username)
-        )
-
-    con.commit()
+    data = con.execute(
+        "SELECT user,message,msg_type,time FROM chat ORDER BY id ASC"
+    ).fetchall()
     con.close()
+    return jsonify(data)
 
-    return redirect("/chat")
-
-# ---------------- ADMIN ----------------
-@app.route("/admin", methods=["GET", "POST"])
+# ---------------- ADMIN PANEL ----------------
+@app.route("/admin")
 def admin():
-    if request.method == "POST":
-        if request.form["password"] == ADMIN_PASSWORD:
-            session["admin"] = True
-
     if not session.get("admin"):
-        return render_template("admin.html", login=True)
+        return redirect("/chat")
 
     con = db()
     users = con.execute(
@@ -169,18 +207,6 @@ def admin():
 
     return render_template("admin.html", users=users)
 
-@app.route("/delete/<username>")
-def delete_user(username):
-    if not session.get("admin"):
-        return redirect("/")
-
-    con = db()
-    con.execute("DELETE FROM users WHERE username=?", (username,))
-    con.commit()
-    con.close()
-
-    return redirect("/admin")
-
 # ---------------- POLL ----------------
 @app.route("/poll", methods=["GET", "POST"])
 def poll():
@@ -189,28 +215,47 @@ def poll():
 
     if request.method == "POST" and session.get("admin"):
         cur.execute("DELETE FROM poll")
+        cur.execute("DELETE FROM poll_votes")
+        cur.execute("""
+        INSERT INTO poll VALUES (?,?,?,?,?,?,?,?)
+        """, (
+            request.form["question"],
+            request.form["o1"],
+            request.form["o2"],
+            request.form["o3"],
+            request.form["o4"],
+            0, 0, 0, 0
+        ))
+        con.commit()
+
+    poll = cur.execute("SELECT * FROM poll").fetchone()
+    con.close()
+
+    return render_template("poll.html", poll=poll, admin=session.get("admin"))
+
+# ---------------- VOTE ----------------
+@app.route("/vote/<int:n>")
+def vote(n):
+    if "user" not in session:
+        return redirect("/")
+
+    con = db()
+    cur = con.cursor()
+
+    already = cur.execute(
+        "SELECT username FROM poll_votes WHERE username=?",
+        (session["user"],)
+    ).fetchone()
+
+    if not already:
+        cur.execute(f"UPDATE poll SET v{n}=v{n}+1")
         cur.execute(
-            "INSERT INTO poll(question,yes,no) VALUES(?,?,?)",
-            (request.form["question"], 0, 0)
+            "INSERT INTO poll_votes(username) VALUES(?)",
+            (session["user"],)
         )
         con.commit()
 
-    poll_data = cur.execute("SELECT * FROM poll").fetchone()
     con.close()
-
-    return render_template(
-        "poll.html",
-        poll=poll_data,
-        admin=session.get("admin")
-    )
-
-@app.route("/vote/<opt>")
-def vote(opt):
-    con = db()
-    con.execute(f"UPDATE poll SET {opt}={opt}+1")
-    con.commit()
-    con.close()
-
     return redirect("/poll")
 
 # ---------------- RUN ----------------
