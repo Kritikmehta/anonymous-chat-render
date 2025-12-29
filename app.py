@@ -5,8 +5,8 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = "CHANGE_THIS_SECRET"
 
-LOGIN_PASSWORD = "college123"
-ADMIN_PASSWORD = "admin123"
+LOGIN_PASSWORD = "collage"
+ADMIN_PASSWORD = "kritik"
 
 # ---------------- DATABASE ----------------
 def db():
