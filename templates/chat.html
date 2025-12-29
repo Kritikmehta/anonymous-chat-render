@@ -1,34 +1,57 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Group Chat</title>
+    <title>Chat</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-<h3>Welcome, {{ user }}</h3>
-<hr>
-
-<div>
-{% for m in messages %}
-    <p>
-        <b>{{ m[0] }}</b> : {{ m[1] }}
-        <a href="/report/{{ m[0] }}">🚩</a>
-    </p>
-{% endfor %}
+<div class="header">
+    <img src="/static/rdgmc_logo.png">
+    <h1>R.D. Gardi Medical College</h1>
+    <h2>RDGMC Chat Group</h2>
+    <hr>
 </div>
 
-<hr>
+<div class="container">
+
+{% if admin %}
+<form method="post" action="/send">
+    <input name="msg" placeholder="Admin announcement">
+    <input type="hidden" name="announcement" value="1">
+    <button>Send Announcement</button>
+</form>
+{% endif %}
+
+<div class="chat-box" id="chat"></div>
 
 <form method="post" action="/send">
-    <input type="text" name="msg" placeholder="Type message..." required>
-    <button type="submit">Send</button>
+    <input name="msg" placeholder="Type message" required>
+    <button>Send</button>
 </form>
 
 <br>
+<a href="/poll">Poll</a> |
+{% if admin %}<a href="/admin">Admin</a>{% endif %}
 
-<a href="/poll">📊 Poll</a> |
-<a href="/admin">🔐 Admin</a>
+</div>
+
+<script>
+function load(){
+ fetch("/messages").then(r=>r.json()).then(d=>{
+  let h="";
+  d.forEach(m=>{
+   h+=`<div class="msg ${m[2]=='announcement'?'announcement':''}">
+   <b>${m[0]}</b>: ${m[1]}
+   </div>`;
+  });
+  document.getElementById("chat").innerHTML=h;
+ });
+}
+setInterval(load,3000);
+load();
+</script>
 
 </body>
 </html>
