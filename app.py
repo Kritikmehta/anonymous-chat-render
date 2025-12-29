@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 app.secret_key = "CHANGE_THIS_SECRET"
 
-LOGIN_PASSWORD = "college123"
-ADMIN_PASSWORD = "admin123"
+LOGIN_PASSWORD = "collage"
+ADMIN_PASSWORD = "kritik"
 
 # ---------------- DATABASE ----------------
 def db():
@@ -99,7 +99,6 @@ def login():
             "SELECT device_id, security_answer FROM users WHERE username=?",
             (u,)
         ).fetchone()
-
         if row:
             if row[0] != d and row[1] != s:
                 con.close()
