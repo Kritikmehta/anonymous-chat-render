@@ -8,6 +8,8 @@
 <body>
 
 <div class="header">
+    <img src="/static/rdgmc_logo.png">
+    <h1>R.D. Gardi Medical College</h1>
     <h2>RDGMC Chat Group</h2>
     <hr>
 </div>
@@ -15,45 +17,71 @@
 <div class="container">
 
 {% if muted %}
-<p style="color:red;text-align:center;">You are muted temporarily</p>
+<p style="color:red;text-align:center;">🚫 You are muted temporarily</p>
 {% endif %}
 
+<!-- ADMIN ANNOUNCEMENT -->
 {% if admin %}
-<form method="post" action="/send">
-    <input name="msg" placeholder="Admin announcement">
-    <input type="hidden" name="announcement" value="1">
-    <button>Send Announcement</button>
-</form>
+<div class="box">
+    <input id="ann_msg" placeholder="Admin announcement">
+    <button onclick="sendMsg(true)">Send Announcement</button>
+</div>
 {% endif %}
 
+<!-- CHAT BOX -->
 <div class="chat-box" id="chat"></div>
 
+<!-- MESSAGE INPUT -->
 {% if not muted %}
-<form method="post" action="/send">
-    <input name="msg" placeholder="Type message" required>
-    <button>Send</button>
-</form>
+<div class="box">
+    <input id="msg" placeholder="Type message">
+    <button onclick="sendMsg(false)">Send</button>
+</div>
 {% endif %}
+
+<!-- LINKS -->
+<div style="text-align:center;">
+    <a href="/poll">📊 Poll</a>
+    {% if admin %} | <a href="/admin">⚙ Admin Panel</a>{% endif %}
+</div>
 
 </div>
 
 <script>
 function load(){
- fetch("/messages").then(r=>r.json()).then(d=>{
-  let h="";
-  d.forEach(m=>{
-   h+=`<div class="msg ${m[3]=='announcement'?'announcement':''}">
-   <b>${m[1]}</b>: ${m[2]}
-   <a href="/report/${m[0]}">🚩</a>
-   {% if admin %}
-     <a href="/delete_msg/${m[0]}">❌</a>
-     <a href="/mute/${m[1]}">🔇</a>
-   {% endif %}
-   </div>`;
-  });
-  document.getElementById("chat").innerHTML=h;
+ fetch("/messages")
+ .then(r=>r.json())
+ .then(d=>{
+   let h="";
+   d.forEach(m=>{
+     h+=`<div class="msg ${m[3]=='announcement'?'announcement':''}">
+     <b>${m[1]}</b>: ${m[2]}
+     <a href="/report/${m[0]}">🚩</a>
+     {% if admin %}
+       <a href="/delete_msg/${m[0]}">❌</a>
+       <a href="/mute/${m[1]}">🔇</a>
+     {% endif %}
+     </div>`;
+   });
+   document.getElementById("chat").innerHTML=h;
  });
 }
+
+function sendMsg(isAnn){
+ let text = isAnn ? document.getElementById("ann_msg").value
+                  : document.getElementById("msg").value;
+
+ fetch("/send", {
+   method:"POST",
+   headers:{"Content-Type":"application/x-www-form-urlencoded"},
+   body:"msg="+encodeURIComponent(text)+(isAnn?"&announcement=1":"")
+ }).then(()=>{
+   if(!isAnn) document.getElementById("msg").value="";
+   if(isAnn) document.getElementById("ann_msg").value="";
+   load();
+ });
+}
+
 setInterval(load,3000);
 load();
 </script>
