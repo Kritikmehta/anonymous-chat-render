@@ -3,37 +3,54 @@
 <head>
     <title>Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-<h2>Anonymous Login</h2>
+<div class="header">
+    <img src="/static/rdgmc_logo.png">
+    <h1>R.D. Gardi Medical College</h1>
+    <h2>RDGMC Chat Group</h2>
+    <hr>
+</div>
 
+<div class="container">
+
+<div class="box">
+<h3>User Login</h3>
 <form method="post">
-    <input type="text" name="username" placeholder="Enter username" required>
-    <br><br>
-    <input type="password" name="password" placeholder="Common password" required>
-    <br><br>
+    <input name="username" placeholder="Username" required>
+    <input name="password" type="password" placeholder="Common password" required>
+    <input name="security_answer" placeholder="What name did you secretly use for someone you liked?" required>
+    <input type="hidden" name="device_id" id="device">
     <button type="submit">Login</button>
 </form>
+</div>
 
-</body>
-</html><!DOCTYPE html>
-<html>
-<head>
-    <title>Login</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-</head>
-<body>
-
-<h2>Anonymous Login</h2>
-
+<div class="box">
+<h3>Admin Login</h3>
 <form method="post">
-    <input type="text" name="username" placeholder="Enter username" required>
-    <br><br>
-    <input type="password" name="password" placeholder="Common password" required>
-    <br><br>
-    <button type="submit">Login</button>
+    <input name="username" placeholder="Admin username" required>
+    <input name="password" type="password" placeholder="Common password" required>
+    <input name="admin_password" type="password" placeholder="Admin password" required>
+    <input name="security_answer" placeholder="Security answer" required>
+    <input type="hidden" name="is_admin" value="1">
+    <input type="hidden" name="device_id" id="device2">
+    <button type="submit">Admin Login</button>
 </form>
+</div>
+
+</div>
+
+<script>
+let d = localStorage.getItem("device_id");
+if(!d){
+    d = Math.random().toString(36).substring(2);
+    localStorage.setItem("device_id", d);
+}
+document.getElementById("device").value = d;
+document.getElementById("device2").value = d;
+</script>
 
 </body>
 </html>
