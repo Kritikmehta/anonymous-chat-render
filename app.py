@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 app.secret_key = "CHANGE_THIS_SECRET"
 
-LOGIN_PASSWORD = "collage"
-ADMIN_PASSWORD = "kritik"
+LOGIN_PASSWORD = "rdgmc"
+ADMIN_PASSWORD = "creator"
 
 # ---------------- DATABASE ----------------
 def db():
@@ -347,3 +347,5 @@ def vote(n):
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run()
+
+# MADE BY KRITIK MEHTA 
