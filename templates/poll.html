@@ -17,26 +17,36 @@
 <div class="container">
 
 {% if poll %}
-<h3>{{poll[0]}}</h3>
-<a href="/vote/1">{{poll[1]}} ({{poll[5]}})</a><br><br>
-<a href="/vote/2">{{poll[2]}} ({{poll[6]}})</a><br><br>
-<a href="/vote/3">{{poll[3]}} ({{poll[7]}})</a><br><br>
-<a href="/vote/4">{{poll[4]}} ({{poll[8]}})</a>
+<div class="box">
+    <h3>{{ poll[0] }}</h3>
+
+    <a href="/vote/1">{{ poll[1] }} ({{ poll[5] }})</a><br><br>
+    <a href="/vote/2">{{ poll[2] }} ({{ poll[6] }})</a><br><br>
+    <a href="/vote/3">{{ poll[3] }} ({{ poll[7] }})</a><br><br>
+    <a href="/vote/4">{{ poll[4] }} ({{ poll[8] }})</a>
+</div>
+{% else %}
+<p>No poll active.</p>
 {% endif %}
 
 {% if admin %}
 <hr>
+
+<div class="box">
+<h3>Create New Poll (Admin)</h3>
 <form method="post">
-<input name="question" placeholder="Question" required>
-<input name="o1" placeholder="Option 1" required>
-<input name="o2" placeholder="Option 2" required>
-<input name="o3" placeholder="Option 3" required>
-<input name="o4" placeholder="Option 4" required>
-<button>Create Poll</button>
+    <input name="question" placeholder="Poll question" required>
+    <input name="o1" placeholder="Option 1" required>
+    <input name="o2" placeholder="Option 2" required>
+    <input name="o3" placeholder="Option 3" required>
+    <input name="o4" placeholder="Option 4" required>
+    <button type="submit">Create Poll</button>
 </form>
+</div>
 {% endif %}
 
-<br><a href="/chat">Back</a>
+<br>
+<a href="/chat">⬅ Back to Chat</a>
 
 </div>
 </body>
